@@ -12,6 +12,7 @@ from kyc.api.uploads import UploadRejected, validate_image_upload
 from kyc.audit import AuditLedger
 from kyc.decision import DecisionEngine
 from kyc.domain import KycSession, SignalBundle
+from kyc.session_repository import SessionRepository
 from kyc.settings import settings
 from kyc.storage import EncryptedStore
 from kyc.workflow import InvalidTransition, apply_event
@@ -21,6 +22,11 @@ sessions: dict[UUID, KycSession] = {}
 ledger = AuditLedger()
 engine = DecisionEngine(Path(__file__).parents[3] / "config" / "decision-rules.yaml")
 store = EncryptedStore(settings.encryption_key)
+repository = SessionRepository(settings.database_url)
+
+
+def find_session(session_id: UUID) -> KycSession | None:
+    return sessions.get(session_id) or repository.get(session_id)
 
 
 def client_auth(x_api_key: str = Header()) -> None:
@@ -53,13 +59,14 @@ class DecideBody(BaseModel):
 def create_session() -> KycSession:
     session = KycSession()
     sessions[session.id] = session
+    repository.save(session)
     ledger.append(session.id, "client", "create")
     return session
 
 
 @app.post("/sessions/{session_id}/events", dependencies=[Depends(client_auth)])
 def transition(session_id: UUID, body: EventBody) -> KycSession:
-    session = sessions.get(session_id)
+    session = find_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="not found")
     try:
@@ -68,6 +75,7 @@ def transition(session_id: UUID, body: EventBody) -> KycSession:
         ledger.append(session_id, "client", "invalid_transition", str(exc).split(":")[0])
         raise HTTPException(status_code=409, detail="event cannot be applied") from exc
     ledger.append(session_id, "client", body.event)
+    repository.save(updated)
     return updated
 
 
@@ -76,7 +84,7 @@ async def upload(session_id: UUID, kind: str, request: Request) -> dict[str, str
     """Raw image upload with magic-byte/dimension checks; stores ciphertext only."""
     if kind not in {"front", "back", "selfie"}:
         raise HTTPException(status_code=404, detail="not found")
-    if session_id not in sessions:
+    if find_session(session_id) is None:
         raise HTTPException(status_code=404, detail="not found")
     payload = await request.body()
     try:
@@ -91,7 +99,7 @@ async def upload(session_id: UUID, kind: str, request: Request) -> dict[str, str
 
 @app.post("/sessions/{session_id}/decision", dependencies=[Depends(client_auth)])
 def decide(session_id: UUID, body: DecideBody) -> object:
-    if session_id not in sessions:
+    if find_session(session_id) is None:
         raise HTTPException(status_code=404, detail="not found")
     decision = engine.decide(body.signals)
     ledger.append(session_id, "system", "decision", decision.verdict.value)
