@@ -1,3 +1,3 @@
-from kyc.liveness.interface import LivenessResult, MockLivenessGate
+from kyc.liveness.interface import HttpLivenessGate, LivenessResult, MockLivenessGate
 
-__all__ = ["LivenessResult", "MockLivenessGate"]
+__all__ = ["HttpLivenessGate", "LivenessResult", "MockLivenessGate"]
