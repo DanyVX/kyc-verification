@@ -29,7 +29,15 @@ def generate(seed: int, output_dir: Path, count: int = 500) -> None:
     font = ImageFont.load_default()
     for index in range(count):
         gender = rng.choice(["M", "F"])
-        identity = SyntheticIdentity(fake.name(), fake.name(), gender, f"{rng.randrange(10000,99999)}-{rng.randrange(1000000,9999999)}-{rng.randrange(10)}", fake.date_of_birth(minimum_age=18, maximum_age=80).strftime("%d.%m.%Y"), "01.01.2020", "01.01.2030")
+        identity = SyntheticIdentity(
+            fake.name(),
+            fake.name(),
+            gender,
+            f"{rng.randrange(10000, 99999)}-{rng.randrange(1000000, 9999999)}-{rng.randrange(10)}",
+            fake.date_of_birth(minimum_age=18, maximum_age=80).strftime("%d.%m.%Y"),
+            "01.01.2020",
+            "01.01.2030",
+        )
         card = Image.new("RGB", (900, 560), "#e8e2cc")
         draw = ImageDraw.Draw(card)
         draw.rectangle((10, 10, 890, 550), outline="#9b2c2c", width=8)
@@ -38,4 +46,6 @@ def generate(seed: int, output_dir: Path, count: int = 500) -> None:
             draw.text((80, 150 + row * 52), f"{label.upper()}: {value}", fill="#202020", font=font)
         path = output_dir / f"sample-{index:04d}.png"
         card.save(path)
-        path.with_suffix(".json").write_text(json.dumps(asdict(identity), indent=2), encoding="utf-8")
+        path.with_suffix(".json").write_text(
+            json.dumps(asdict(identity), indent=2), encoding="utf-8"
+        )

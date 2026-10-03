@@ -16,5 +16,7 @@ def test_rejects_short_cnic() -> None:
 
 
 def test_leap_day_and_expiry() -> None:
-    reasons = validate_dates(date(2000, 2, 29), date(2020, 1, 1), date(2024, 1, 1), today=date(2025, 1, 1))
+    reasons = validate_dates(
+        date(2000, 2, 29), date(2020, 1, 1), date(2024, 1, 1), today=date(2025, 1, 1)
+    )
     assert ReasonCode.ID_EXPIRED in reasons

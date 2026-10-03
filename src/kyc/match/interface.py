@@ -11,6 +11,7 @@ class FaceMatchResult:
 
 class MockFaceMatcher:
     """Stable stand-in until an approved versioned face-match package is configured."""
+
     def compare(self, id_face: bytes, selfie: bytes) -> FaceMatchResult:
         if not id_face or not selfie:
             return FaceMatchResult(None, "NO_FACE")

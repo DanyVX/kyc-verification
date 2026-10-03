@@ -16,7 +16,9 @@ class SessionRow(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     state: Mapped[str] = mapped_column(String(32), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
     decision_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -31,12 +33,17 @@ class ArtifactRow(Base):
 def initialize(database_url: str) -> None:
     engine = create_engine(database_url)
     Base.metadata.create_all(engine)
+    engine.dispose()
 
 
 def expired_artifact_keys(database_url: str, now: datetime | None = None) -> list[str]:
     engine = create_engine(database_url)
     with Session(engine) as db:
-        return list(db.scalars(select(ArtifactRow.key).where(ArtifactRow.expires_at <= (now or datetime.now(UTC)))))
+        return list(
+            db.scalars(
+                select(ArtifactRow.key).where(ArtifactRow.expires_at <= (now or datetime.now(UTC)))
+            )
+        )
 
 
 def session_key(session_id: UUID) -> str:

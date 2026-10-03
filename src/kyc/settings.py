@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """Environment-only configuration; never log these values."""
+
     model_config = SettingsConfigDict(env_file=".env", env_prefix="KYC_")
     database_url: str = "sqlite:///./kyc.sqlite3"
     encryption_key: str = "wS4PlcOWVDpQSTOma2xlyXMNNge4N84Yn90tVlk6Jws="  # local demo only

@@ -5,11 +5,13 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
+from kyc.api.uploads import UploadRejected, validate_image_upload
 from kyc.audit import AuditLedger
 from kyc.decision import DecisionEngine
 from kyc.domain import KycSession, SignalBundle
-from kyc.api.uploads import UploadRejected, validate_image_upload
 from kyc.settings import settings
 from kyc.storage import EncryptedStore
 from kyc.workflow import InvalidTransition, apply_event
@@ -32,8 +34,8 @@ def admin_auth(x_api_key: str = Header()) -> None:
 
 
 @app.middleware("http")
-async def request_id(request: Request, call_next: object):
-    response = await call_next(request)  # type: ignore[misc]
+async def request_id(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    response = await call_next(request)
     response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "generated-local")
     return response
 
@@ -88,7 +90,7 @@ async def upload(session_id: UUID, kind: str, request: Request) -> dict[str, str
 
 
 @app.post("/sessions/{session_id}/decision", dependencies=[Depends(client_auth)])
-def decide(session_id: UUID, body: DecideBody):
+def decide(session_id: UUID, body: DecideBody) -> object:
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="not found")
     decision = engine.decide(body.signals)
@@ -112,4 +114,5 @@ def erase_session(session_id: UUID) -> dict[str, int]:
 
 def run() -> None:
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -5,6 +5,7 @@ from cryptography.fernet import Fernet
 
 class EncryptedStore:
     """Encryption boundary for short-lived synthetic artifacts."""
+
     def __init__(self, key: str) -> None:
         self._fernet = Fernet(key.encode())
         self._values: dict[str, bytes] = {}

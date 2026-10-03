@@ -15,7 +15,9 @@ def normalize_cnic(value: str) -> str:
     return f"{digits[:5]}-{digits[5:12]}-{digits[12]}"
 
 
-def validate_dates(dob: date, issue: date, expiry: date, today: date | None = None, min_age: int = 18) -> list[ReasonCode]:
+def validate_dates(
+    dob: date, issue: date, expiry: date, today: date | None = None, min_age: int = 18
+) -> list[ReasonCode]:
     today = today or date.today()
     reasons: list[ReasonCode] = []
     age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))

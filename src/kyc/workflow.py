@@ -10,11 +10,26 @@ class InvalidTransition(ValueError):
 
 
 TRANSITIONS: Mapping[SessionState, Mapping[str, SessionState]] = {
-    SessionState.CREATED: {"upload_front": SessionState.ID_FRONT_UPLOADED, "cancel": SessionState.CANCELLED},
-    SessionState.ID_FRONT_UPLOADED: {"upload_back": SessionState.ID_BACK_UPLOADED, "cancel": SessionState.CANCELLED},
-    SessionState.ID_BACK_UPLOADED: {"process_id": SessionState.ID_PROCESSED, "cancel": SessionState.CANCELLED},
-    SessionState.ID_PROCESSED: {"upload_selfie": SessionState.SELFIE_UPLOADED, "cancel": SessionState.CANCELLED},
-    SessionState.SELFIE_UPLOADED: {"complete_liveness": SessionState.LIVENESS_DONE, "cancel": SessionState.CANCELLED},
+    SessionState.CREATED: {
+        "upload_front": SessionState.ID_FRONT_UPLOADED,
+        "cancel": SessionState.CANCELLED,
+    },
+    SessionState.ID_FRONT_UPLOADED: {
+        "upload_back": SessionState.ID_BACK_UPLOADED,
+        "cancel": SessionState.CANCELLED,
+    },
+    SessionState.ID_BACK_UPLOADED: {
+        "process_id": SessionState.ID_PROCESSED,
+        "cancel": SessionState.CANCELLED,
+    },
+    SessionState.ID_PROCESSED: {
+        "upload_selfie": SessionState.SELFIE_UPLOADED,
+        "cancel": SessionState.CANCELLED,
+    },
+    SessionState.SELFIE_UPLOADED: {
+        "complete_liveness": SessionState.LIVENESS_DONE,
+        "cancel": SessionState.CANCELLED,
+    },
     SessionState.LIVENESS_DONE: {"decide": SessionState.DECIDED, "cancel": SessionState.CANCELLED},
     SessionState.DECIDED: {"review": SessionState.REVIEWED},
     SessionState.REVIEWED: {},

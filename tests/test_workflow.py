@@ -1,10 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from kyc.domain import KycSession, SessionState
-from kyc.workflow import InvalidTransition, TRANSITIONS, apply_event
+from kyc.workflow import TRANSITIONS, InvalidTransition, apply_event
 
 
 def test_double_submit_is_idempotent() -> None:
@@ -22,7 +23,23 @@ def test_expired_session_cannot_transition() -> None:
     assert session.state is SessionState.EXPIRED
 
 
-@given(st.lists(st.sampled_from(["upload_front", "upload_back", "process_id", "upload_selfie", "complete_liveness", "decide", "review", "cancel"]), max_size=30))
+@given(
+    st.lists(
+        st.sampled_from(
+            [
+                "upload_front",
+                "upload_back",
+                "process_id",
+                "upload_selfie",
+                "complete_liveness",
+                "decide",
+                "review",
+                "cancel",
+            ]
+        ),
+        max_size=30,
+    )
+)
 def test_random_event_sequences_never_create_an_illegal_state(events: list[str]) -> None:
     session = KycSession()
     for index, event in enumerate(events):
