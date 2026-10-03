@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import tempfile
 from io import BytesIO
 from pathlib import Path
-import tempfile
 
 from PIL import Image
 
