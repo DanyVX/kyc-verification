@@ -9,23 +9,25 @@ from pydantic import BaseModel
 from kyc.audit import AuditLedger
 from kyc.decision import DecisionEngine
 from kyc.domain import KycSession, SignalBundle
+from kyc.api.uploads import UploadRejected, validate_image_upload
+from kyc.settings import settings
+from kyc.storage import EncryptedStore
 from kyc.workflow import InvalidTransition, apply_event
 
 app = FastAPI(title="Synthetic KYC Verification Demo", version="0.1.0")
 sessions: dict[UUID, KycSession] = {}
 ledger = AuditLedger()
 engine = DecisionEngine(Path(__file__).parents[3] / "config" / "decision-rules.yaml")
-CLIENT_KEY = "development-client-key-change-me"
-ADMIN_KEY = "development-admin-key-change-me"
+store = EncryptedStore(settings.encryption_key)
 
 
 def client_auth(x_api_key: str = Header()) -> None:
-    if x_api_key != CLIENT_KEY:
+    if x_api_key != settings.client_api_key:
         raise HTTPException(status_code=401, detail="invalid credentials")
 
 
 def admin_auth(x_api_key: str = Header()) -> None:
-    if x_api_key != ADMIN_KEY:
+    if x_api_key != settings.admin_api_key:
         raise HTTPException(status_code=401, detail="invalid credentials")
 
 
@@ -67,6 +69,24 @@ def transition(session_id: UUID, body: EventBody) -> KycSession:
     return updated
 
 
+@app.put("/sessions/{session_id}/uploads/{kind}", dependencies=[Depends(client_auth)])
+async def upload(session_id: UUID, kind: str, request: Request) -> dict[str, str]:
+    """Raw image upload with magic-byte/dimension checks; stores ciphertext only."""
+    if kind not in {"front", "back", "selfie"}:
+        raise HTTPException(status_code=404, detail="not found")
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="not found")
+    payload = await request.body()
+    try:
+        validate_image_upload(payload, settings.max_upload_bytes)
+    except UploadRejected:
+        raise HTTPException(status_code=422, detail="upload rejected") from None
+    key = f"session/{session_id}/{kind}"
+    store.put(key, payload)
+    ledger.append(session_id, "client", f"upload_{kind}")
+    return {"status": "stored", "kind": kind}
+
+
 @app.post("/sessions/{session_id}/decision", dependencies=[Depends(client_auth)])
 def decide(session_id: UUID, body: DecideBody):
     if session_id not in sessions:
@@ -79,6 +99,15 @@ def decide(session_id: UUID, body: DecideBody):
 @app.get("/admin/sessions", dependencies=[Depends(admin_auth)])
 def list_sessions() -> list[dict[str, str]]:
     return [{"id": str(item.id), "state": item.state.value} for item in sessions.values()]
+
+
+@app.delete("/sessions/{session_id}", dependencies=[Depends(client_auth)])
+def erase_session(session_id: UUID) -> dict[str, int]:
+    """DSAR-style erase for raw encrypted demo artifacts."""
+    deleted = store.erase_prefix(f"session/{session_id}/")
+    sessions.pop(session_id, None)
+    ledger.append(session_id, "client", "erase")
+    return {"erased_artifacts": deleted}
 
 
 def run() -> None:

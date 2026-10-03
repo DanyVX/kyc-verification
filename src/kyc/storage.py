@@ -20,3 +20,6 @@ class EncryptedStore:
         for key in matches:
             del self._values[key]
         return len(matches)
+
+    def contains(self, key: str) -> bool:
+        return key in self._values
