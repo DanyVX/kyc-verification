@@ -1,0 +1,6 @@
+version: "2026-10-03.1"
+policy:
+  approve_min: 0.80
+  review_min: 0.55
+  min_ocr_confidence: 0.80
+  liveness_unavailable_verdict: REVIEW

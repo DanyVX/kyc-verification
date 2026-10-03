@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from pathlib import Path
+from uuid import UUID
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from pydantic import BaseModel
+
+from kyc.audit import AuditLedger
+from kyc.decision import DecisionEngine
+from kyc.domain import KycSession, SignalBundle
+from kyc.workflow import InvalidTransition, apply_event
+
+app = FastAPI(title="Synthetic KYC Verification Demo", version="0.1.0")
+sessions: dict[UUID, KycSession] = {}
+ledger = AuditLedger()
+engine = DecisionEngine(Path(__file__).parents[3] / "config" / "decision-rules.yaml")
+CLIENT_KEY = "development-client-key-change-me"
+ADMIN_KEY = "development-admin-key-change-me"
+
+
+def client_auth(x_api_key: str = Header()) -> None:
+    if x_api_key != CLIENT_KEY:
+        raise HTTPException(status_code=401, detail="invalid credentials")
+
+
+def admin_auth(x_api_key: str = Header()) -> None:
+    if x_api_key != ADMIN_KEY:
+        raise HTTPException(status_code=401, detail="invalid credentials")
+
+
+@app.middleware("http")
+async def request_id(request: Request, call_next: object):
+    response = await call_next(request)  # type: ignore[misc]
+    response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "generated-local")
+    return response
+
+
+class EventBody(BaseModel):
+    event: str
+    idempotency_key: str
+
+
+class DecideBody(BaseModel):
+    signals: SignalBundle
+
+
+@app.post("/sessions", dependencies=[Depends(client_auth)])
+def create_session() -> KycSession:
+    session = KycSession()
+    sessions[session.id] = session
+    ledger.append(session.id, "client", "create")
+    return session
+
+
+@app.post("/sessions/{session_id}/events", dependencies=[Depends(client_auth)])
+def transition(session_id: UUID, body: EventBody) -> KycSession:
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="not found")
+    try:
+        updated = apply_event(session, body.event, body.idempotency_key)
+    except InvalidTransition as exc:
+        ledger.append(session_id, "client", "invalid_transition", str(exc).split(":")[0])
+        raise HTTPException(status_code=409, detail="event cannot be applied") from exc
+    ledger.append(session_id, "client", body.event)
+    return updated
+
+
+@app.post("/sessions/{session_id}/decision", dependencies=[Depends(client_auth)])
+def decide(session_id: UUID, body: DecideBody):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="not found")
+    decision = engine.decide(body.signals)
+    ledger.append(session_id, "system", "decision", decision.verdict.value)
+    return decision
+
+
+@app.get("/admin/sessions", dependencies=[Depends(admin_auth)])
+def list_sessions() -> list[dict[str, str]]:
+    return [{"id": str(item.id), "state": item.state.value} for item in sessions.values()]
+
+
+def run() -> None:
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
