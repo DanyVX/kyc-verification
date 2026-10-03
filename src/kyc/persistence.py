@@ -20,6 +20,7 @@ class SessionRow(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     decision_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    idempotency_keys_json: Mapped[str] = mapped_column(Text, default="[]")
 
 
 class ArtifactRow(Base):
