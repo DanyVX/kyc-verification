@@ -39,6 +39,18 @@ uv run pytest
 uv run uvicorn kyc.api.main:app --reload
 ```
 
+### Optional OCR engines and measured evaluation
+
+PaddleOCR is the primary integration and Tesseract is the comparison baseline. Neither is installed by default because their local runtimes/models are environment-specific. Install one explicitly, generate a reproducible synthetic set, then write a measured result file:
+
+```powershell
+uv sync --extra ocr-tesseract
+uv run python -c "from pathlib import Path; from kyc.synth.generator import generate; generate(42, Path('data/synthetic'), 500)"
+uv run python bench/ocr_eval.py --dataset data/synthetic --engine tesseract --output results/ocr-tesseract.json
+```
+
+The current machine has neither Tesseract nor PaddleOCR installed, so no OCR accuracy is claimed.
+
 Use `X-API-Key: development-client-key-change-me` for client endpoints and the admin key for `/admin` endpoints in development. Replace both values outside a local demo.
 
 ## Design and limitations

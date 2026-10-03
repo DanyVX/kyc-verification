@@ -16,6 +16,10 @@ class OcrEngine(Protocol):
     def extract(self, image: bytes) -> OcrResult: ...
 
 
+class OcrUnavailable(RuntimeError):
+    """The selected local OCR runtime was not installed or did not respond."""
+
+
 NUMERIC_REPLACEMENTS: Final[dict[str, str | int | None]] = {"O": "0", "l": "1", "S": "5", "B": "8"}
 
 
