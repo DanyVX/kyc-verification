@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     raw_retention_hours: int = 24
     max_upload_bytes: int = 8 * 1024 * 1024
     requests_per_minute: int = 60
+    face_service_url: str | None = None
+    face_service_api_key: str | None = None
+    liveness_service_url: str | None = None
 
 
 settings = Settings()

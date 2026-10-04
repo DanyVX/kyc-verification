@@ -1,3 +1,3 @@
-from kyc.match.interface import FaceMatchResult, MockFaceMatcher
+from kyc.match.interface import FaceMatchResult, HttpFaceMatcher, MockFaceMatcher
 
-__all__ = ["FaceMatchResult", "MockFaceMatcher"]
+__all__ = ["FaceMatchResult", "HttpFaceMatcher", "MockFaceMatcher"]
