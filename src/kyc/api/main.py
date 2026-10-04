@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from uuid import UUID
 
@@ -12,7 +13,7 @@ from kyc.api.rate_limit import FixedWindowRateLimiter
 from kyc.api.uploads import UploadRejected, validate_image_upload
 from kyc.audit import AuditLedger
 from kyc.decision import DecisionEngine
-from kyc.domain import KycSession, SignalBundle
+from kyc.domain import Decision, KycSession, SignalBundle
 from kyc.session_repository import SessionRepository
 from kyc.settings import settings
 from kyc.storage import EncryptedStore
@@ -104,12 +105,30 @@ async def upload(session_id: UUID, kind: str, request: Request) -> dict[str, str
 
 
 @app.post("/sessions/{session_id}/decision", dependencies=[Depends(client_auth)])
-def decide(session_id: UUID, body: DecideBody) -> object:
-    if find_session(session_id) is None:
+def decide(session_id: UUID, body: DecideBody) -> Decision:
+    session = find_session(session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail="not found")
     decision = engine.decide(body.signals)
+    repository.save_decision(session_id, decision.model_dump_json())
     ledger.append(session_id, "system", "decision", decision.verdict.value)
     return decision
+
+
+@app.get("/sessions/{session_id}", dependencies=[Depends(client_auth)])
+def status(session_id: UUID) -> KycSession:
+    session = find_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="not found")
+    return session
+
+
+@app.get("/sessions/{session_id}/decision", dependencies=[Depends(client_auth)])
+def get_decision(session_id: UUID) -> Decision:
+    value = repository.get_decision(session_id)
+    if value is None:
+        raise HTTPException(status_code=404, detail="not found")
+    return Decision.model_validate(json.loads(value))
 
 
 @app.get("/admin/sessions", dependencies=[Depends(admin_auth)])

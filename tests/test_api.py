@@ -9,3 +9,8 @@ def test_session_api_requires_key_and_creates_session() -> None:
     response = client.post("/sessions", headers={"X-API-Key": "development-client-key-change-me"})
     assert response.status_code == 200
     assert response.json()["state"] == "CREATED"
+    session_id = response.json()["id"]
+    status = client.get(
+        f"/sessions/{session_id}", headers={"X-API-Key": "development-client-key-change-me"}
+    )
+    assert status.status_code == 200

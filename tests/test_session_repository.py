@@ -24,3 +24,11 @@ def test_artifact_retention_and_erase(tmp_path) -> None:
     assert repository.purge_expired_artifacts(datetime.now(UTC) + timedelta(hours=2)) == [
         "session/a/front"
     ]
+
+
+def test_decision_round_trip(tmp_path) -> None:
+    repository = SessionRepository(f"sqlite:///{tmp_path / 'sessions.sqlite3'}")
+    session = KycSession()
+    repository.save(session)
+    repository.save_decision(session.id, '{"verdict":"REVIEW"}')
+    assert repository.get_decision(session.id) == '{"verdict":"REVIEW"}'

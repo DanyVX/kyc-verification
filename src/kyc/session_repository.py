@@ -100,3 +100,16 @@ class SessionRepository:
                 db.delete(row)
             db.commit()
             return keys
+
+    def save_decision(self, session_id: UUID, decision_json: str) -> None:
+        with Session(self.engine) as db:
+            row = db.get(SessionRow, str(session_id))
+            if row is None:
+                raise KeyError(session_id)
+            row.decision_json = decision_json
+            db.commit()
+
+    def get_decision(self, session_id: UUID) -> str | None:
+        with Session(self.engine) as db:
+            row = db.get(SessionRow, str(session_id))
+            return None if row is None else row.decision_json
