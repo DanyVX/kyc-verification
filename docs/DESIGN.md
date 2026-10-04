@@ -14,6 +14,14 @@ Rules are versioned configuration rather than scattered conditionals. Stored dec
 
 The often-repeated final-digit gender convention has not been verified from a suitable authoritative source here. It is **not** a hard validation rule. The system checks only documented format and date consistency.
 
+### 2026-10-04 — keyed duplicate identifiers
+
+Options: retain plaintext CNICs for duplicate checks, store an unkeyed hash, or use a keyed
+fingerprint. Chosen: HMAC-style keyed fingerprints supplied by deployment configuration. Plaintext
+identifiers must not enter audit records, and unkeyed hashes are vulnerable to enumeration because
+the identifier format is small. The demo exposes the deterministic helper; production key storage is
+outside this offline project.
+
 ## Synthetic template
 
 The card has a cream background, clear `SAMPLE — NOT A REAL ID` watermark, and English fields: name, father/husband, gender, CNIC, DOB, issue, expiry. It is intentionally unlike an official document and includes no official logo, seal, hologram, or branding.
