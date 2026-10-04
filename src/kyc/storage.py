@@ -13,6 +13,9 @@ class EncryptedStore:
     def put(self, key: str, value: bytes) -> None:
         self._values[key] = self._fernet.encrypt(value)
 
+    def ciphertext(self, key: str) -> str:
+        return self._values[key].decode("ascii")
+
     def get(self, key: str) -> bytes:
         return self._fernet.decrypt(self._values[key])
 

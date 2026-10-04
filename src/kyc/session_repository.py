@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from kyc.domain import KycSession, SessionState
-from kyc.persistence import Base, SessionRow
+from kyc.persistence import ArtifactRow, Base, SessionRow
 
 
 class SessionRepository:
@@ -62,3 +63,40 @@ class SessionRepository:
                 )
                 for row in rows
             ]
+
+    def save_artifact(
+        self, key: str, session_id: UUID, ciphertext: str, retention_hours: int
+    ) -> None:
+        with Session(self.engine) as db:
+            row = ArtifactRow(
+                key=key,
+                session_id=str(session_id),
+                ciphertext=ciphertext,
+                expires_at=datetime.now(UTC) + timedelta(hours=retention_hours),
+            )
+            db.merge(row)
+            db.commit()
+
+    def erase_artifacts(self, session_id: UUID) -> list[str]:
+        with Session(self.engine) as db:
+            rows = list(
+                db.scalars(select(ArtifactRow).where(ArtifactRow.session_id == str(session_id)))
+            )
+            keys = [row.key for row in rows]
+            for row in rows:
+                db.delete(row)
+            db.commit()
+            return keys
+
+    def purge_expired_artifacts(self, now: datetime | None = None) -> list[str]:
+        with Session(self.engine) as db:
+            rows = list(
+                db.scalars(
+                    select(ArtifactRow).where(ArtifactRow.expires_at <= (now or datetime.now(UTC)))
+                )
+            )
+            keys = [row.key for row in rows]
+            for row in rows:
+                db.delete(row)
+            db.commit()
+            return keys

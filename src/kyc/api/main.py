@@ -98,6 +98,7 @@ async def upload(session_id: UUID, kind: str, request: Request) -> dict[str, str
         raise HTTPException(status_code=422, detail="upload rejected") from None
     key = f"session/{session_id}/{kind}"
     store.put(key, payload)
+    repository.save_artifact(key, session_id, store.ciphertext(key), settings.raw_retention_hours)
     ledger.append(session_id, "client", f"upload_{kind}")
     return {"status": "stored", "kind": kind}
 
@@ -137,6 +138,7 @@ def review_session(session_id: UUID, idempotency_key: str = Header()) -> KycSess
 def erase_session(session_id: UUID) -> dict[str, int]:
     """DSAR-style erase for raw encrypted demo artifacts."""
     deleted = store.erase_prefix(f"session/{session_id}/")
+    repository.erase_artifacts(session_id)
     sessions.pop(session_id, None)
     ledger.append(session_id, "client", "erase")
     return {"erased_artifacts": deleted}
