@@ -47,6 +47,13 @@ Generate the full deterministic demo corpus:
 uv run python scripts/generate_synthetic.py --seed 42 --count 500
 ```
 
+Run the offline workflow demonstration (it creates `data/synthetic-demo/` and a local JSON run
+record). The decision uses explicitly simulated known-good fixture signals; it is not model inference:
+
+```powershell
+uv run python scripts/run_demo.py --seed 42 --count 500
+```
+
 ### Optional OCR engines and measured evaluation
 
 PaddleOCR is the primary integration and Tesseract is the comparison baseline. Neither is installed by default because their local runtimes/models are environment-specific. Install one explicitly, generate a reproducible synthetic set, then write a measured result file:
