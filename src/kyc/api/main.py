@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
+from kyc.api.rate_limit import FixedWindowRateLimiter
 from kyc.api.uploads import UploadRejected, validate_image_upload
 from kyc.audit import AuditLedger
 from kyc.decision import DecisionEngine
@@ -23,6 +24,7 @@ ledger = AuditLedger()
 engine = DecisionEngine(Path(__file__).parents[3] / "config" / "decision-rules.yaml")
 store = EncryptedStore(settings.encryption_key)
 repository = SessionRepository(settings.database_url)
+rate_limiter = FixedWindowRateLimiter(settings.requests_per_minute)
 
 
 def find_session(session_id: UUID) -> KycSession | None:
@@ -41,6 +43,9 @@ def admin_auth(x_api_key: str = Header()) -> None:
 
 @app.middleware("http")
 async def request_id(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    client_key = request.client.host if request.client else "unknown"
+    if not rate_limiter.allow(client_key):
+        raise HTTPException(status_code=429, detail="request rate limited")
     response = await call_next(request)
     response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "generated-local")
     return response
@@ -108,7 +113,24 @@ def decide(session_id: UUID, body: DecideBody) -> object:
 
 @app.get("/admin/sessions", dependencies=[Depends(admin_auth)])
 def list_sessions() -> list[dict[str, str]]:
-    return [{"id": str(item.id), "state": item.state.value} for item in sessions.values()]
+    return [
+        {"id": str(item.id), "state": item.state.value, "expires_at": item.expires_at.isoformat()}
+        for item in repository.list_recent()
+    ]
+
+
+@app.post("/admin/sessions/{session_id}/review", dependencies=[Depends(admin_auth)])
+def review_session(session_id: UUID, idempotency_key: str = Header()) -> KycSession:
+    session = find_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="not found")
+    try:
+        updated = apply_event(session, "review", idempotency_key)
+    except InvalidTransition as exc:
+        raise HTTPException(status_code=409, detail="event cannot be applied") from exc
+    repository.save(updated)
+    ledger.append(session_id, "admin", "review")
+    return updated
 
 
 @app.delete("/sessions/{session_id}", dependencies=[Depends(client_auth)])

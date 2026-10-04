@@ -47,5 +47,13 @@ def expired_artifact_keys(database_url: str, now: datetime | None = None) -> lis
         )
 
 
+def list_session_rows(database_url: str, limit: int = 100) -> list[SessionRow]:
+    engine = create_engine(database_url)
+    with Session(engine) as db:
+        return list(
+            db.scalars(select(SessionRow).order_by(SessionRow.created_at.desc()).limit(limit))
+        )
+
+
 def session_key(session_id: UUID) -> str:
     return f"session/{session_id}/"

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     admin_api_key: str = "development-admin-key-change-me"
     raw_retention_hours: int = 24
     max_upload_bytes: int = 8 * 1024 * 1024
+    requests_per_minute: int = 60
 
 
 settings = Settings()

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from uuid import UUID
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from kyc.domain import KycSession, SessionState
@@ -46,3 +46,19 @@ class SessionRepository:
                 expires_at=row.expires_at,
                 idempotency_keys=set(json.loads(row.idempotency_keys_json)),
             )
+
+    def list_recent(self, limit: int = 100) -> list[KycSession]:
+        with Session(self.engine) as db:
+            rows = db.scalars(
+                select(SessionRow).order_by(SessionRow.created_at.desc()).limit(limit)
+            )
+            return [
+                KycSession(
+                    id=UUID(row.id),
+                    state=SessionState(row.state),
+                    created_at=row.created_at,
+                    expires_at=row.expires_at,
+                    idempotency_keys=set(json.loads(row.idempotency_keys_json)),
+                )
+                for row in rows
+            ]

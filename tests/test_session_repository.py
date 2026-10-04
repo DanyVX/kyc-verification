@@ -10,3 +10,4 @@ def test_session_round_trip(tmp_path) -> None:
     assert loaded is not None
     assert loaded.state is SessionState.ID_FRONT_UPLOADED
     assert loaded.idempotency_keys == {"front-1"}
+    assert repository.list_recent()[0].id == session.id
