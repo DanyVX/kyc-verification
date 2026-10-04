@@ -1,8 +1,10 @@
 # KYC Verification Demo
 
-An end-to-end, **synthetic-data-only** KYC decisioning demo: ID capture, quality signals, OCR-ready extraction, deterministic validation, face/liveness adapters, risk verdicts, and an append-only audit trail.
+An end-to-end, **synthetic-data-only** KYC decisioning demo: ID capture, quality signals, OCR-ready extraction, deterministic validation, mockable face/liveness gates, risk verdicts, and an append-only audit trail.
 
 > **Safety and scope:** This repository never accepts real CNICs in its fixtures or demos. Generated cards are visibly labelled `SAMPLE — NOT A REAL ID`; it does not validate against NADRA or any government database. It validates format and internal consistency only.
+
+> **Release scope:** v0.1.0 is an offline synthetic workflow demonstration. Its generated “selfies” are geometric avatars, not people; mock biometric adapters are fail-closed. It does **not** demonstrate real identity verification, biometric matching, liveness detection, OCR accuracy, or fraud prevention.
 
 ## Status
 
@@ -37,6 +39,12 @@ uv sync --all-groups
 Copy-Item .env.example .env
 uv run pytest
 uv run uvicorn kyc.api.main:app --reload
+```
+
+Generate the full deterministic demo corpus:
+
+```powershell
+uv run python scripts/generate_synthetic.py --seed 42 --count 500
 ```
 
 ### Optional OCR engines and measured evaluation

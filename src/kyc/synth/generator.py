@@ -20,6 +20,18 @@ class SyntheticIdentity:
     expiry: str
 
 
+def _synthetic_selfie(seed: int, label: str) -> Image.Image:
+    """A non-human geometric avatar—not a biometric image or a face-recognition claim."""
+    rng = random.Random(seed)
+    image = Image.new("RGB", (320, 320), (230, 235, 240))
+    draw = ImageDraw.Draw(image)
+    color = tuple(rng.randrange(40, 210) for _ in range(3))
+    draw.ellipse((70, 45, 250, 225), fill=color, outline="#202020", width=4)
+    draw.rectangle((70, 225, 250, 315), fill=color)
+    draw.text((8, 8), f"SYNTHETIC AVATAR — {label}", fill="#9b2c2c", font=ImageFont.load_default())
+    return image
+
+
 def generate(seed: int, output_dir: Path, count: int = 500) -> None:
     """Create visibly fictional cards and sidecar ground truth. No faces or real IDs."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -46,6 +58,16 @@ def generate(seed: int, output_dir: Path, count: int = 500) -> None:
             draw.text((80, 150 + row * 52), f"{label.upper()}: {value}", fill="#202020", font=font)
         path = output_dir / f"sample-{index:04d}.png"
         card.save(path)
-        path.with_suffix(".json").write_text(
-            json.dumps(asdict(identity), indent=2), encoding="utf-8"
-        )
+        match = output_dir / f"sample-{index:04d}-selfie-match.png"
+        mismatch = output_dir / f"sample-{index:04d}-selfie-mismatch.png"
+        _synthetic_selfie(seed + index, "MATCH").save(match)
+        _synthetic_selfie(seed + count + index, "MISMATCH").save(mismatch)
+        truth = {
+            **asdict(identity),
+            "id_image": path.name,
+            "matching_selfie": match.name,
+            "mismatching_selfie": mismatch.name,
+            "category": "genuine",
+            "biometric_note": "geometric avatar only; not a human face",
+        }
+        path.with_suffix(".json").write_text(json.dumps(truth, indent=2), encoding="utf-8")
